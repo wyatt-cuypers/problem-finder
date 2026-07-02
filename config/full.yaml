@@ -1,0 +1,23 @@
+subreddits:
+  - mildlyinfuriating
+  - assholedesign
+  - CrappyDesign
+  - therewasanattempt
+  - personalfinance
+  - homeowners
+  - Parenting
+  - smallbusiness
+  - running
+  - triathlon
+  - cycling
+  - fitness
+  - travel
+  - awardtravel
+  - CreditCards
+  - churning
+  - webdev
+  - devops
+  - ExperiencedDevs
+window_days: 365
+max_posts_per_sub: 800
+pilot: false
