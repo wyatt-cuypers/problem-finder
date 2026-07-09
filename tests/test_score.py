@@ -35,8 +35,6 @@ def test_adequate_solutions_drop_cluster_and_lower_unsolvedness():
     s = score_cluster(solved, START, END)
     assert s["passes_gate"] == 0  # adequate share 1.0 > 0.5
     assert s["unsolvedness"] == 0.0
-    partial = spread_members(4) + spread_members(2, sol="mentioned-adequate")
-    # rebuild with distinct threads/authors across both groups
     partial = [member(thread=f"t{i}", author=f"a{i}",
                       sol="mentioned-adequate" if i < 2 else "none",
                       created=END - i * DAY) for i in range(6)]
