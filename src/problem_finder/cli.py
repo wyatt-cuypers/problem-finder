@@ -1,4 +1,5 @@
 import argparse
+import os
 
 from dotenv import load_dotenv
 
@@ -12,6 +13,20 @@ from .score import run_score
 
 STAGES = ["collect", "extract", "cluster", "score", "report", "run"]
 NEEDS_GEMINI = {"extract", "cluster"}
+REQUIRED_ENV = {
+    "collect": ["REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET"],
+    "extract": ["GEMINI_API_KEY"],
+    "cluster": ["GEMINI_API_KEY"],
+}
+
+
+def _check_env(stages: list[str]) -> None:
+    missing = [var for stage in stages for var in REQUIRED_ENV.get(stage, [])
+               if not os.environ.get(var)]
+    if missing:
+        raise SystemExit(
+            "missing environment variables: " + ", ".join(dict.fromkeys(missing))
+            + " — copy .env.example to .env and fill it in (see README)")
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -22,10 +37,11 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--config", required=True, help="path to yaml config")
     args = parser.parse_args(argv)
 
-    cfg = load_config(args.config)
-    conn = db.connect(cfg.db_path)
     stages = (["collect", "extract", "cluster", "score", "report"]
               if args.stage == "run" else [args.stage])
+    _check_env(stages)
+    cfg = load_config(args.config)
+    conn = db.connect(cfg.db_path)
 
     client = None
     if NEEDS_GEMINI & set(stages):
