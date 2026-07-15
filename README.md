@@ -12,7 +12,21 @@ python3 -m venv .venv
 cp .env.example .env   # then fill in the three keys below
 ```
 
-### Reddit API credentials
+### Reddit access: two modes
+
+`collector: public` in the yaml config uses Reddit's public Atom/RSS feeds —
+**no Reddit credentials needed**, just the Gemini key. Tradeoffs: throttled to
+one request every ~6.5s (a pilot collect takes an hour or two), comment scores
+are unavailable, and each thread yields at most ~100 comments. Use this while
+Reddit API app approval is pending (self-serve app creation at
+reddit.com/prefs/apps was disabled by Reddit's Responsible Builder Policy, and
+unauthenticated .json endpoints were closed in May 2026; new OAuth apps
+require manual approval via Reddit's request form).
+
+`collector: praw` (the default) uses the official OAuth API and needs the
+credentials below.
+
+### Reddit API credentials (praw mode only)
 
 1. Go to https://www.reddit.com/prefs/apps while logged in.
 2. Click "create another app...", choose type **script**, any name,

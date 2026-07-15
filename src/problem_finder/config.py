@@ -17,6 +17,8 @@ class Config:
     embed_model: str = "gemini-embedding-001"
     min_cluster_size: int = 3
     pilot: bool = False
+    collector: str = "praw"        # "praw" (OAuth app) or "public" (no keys)
+    request_interval_s: float = 6.5  # public collector only
 
 
 def load_config(path: str | Path) -> Config:

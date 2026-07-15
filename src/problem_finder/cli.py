@@ -20,9 +20,11 @@ REQUIRED_ENV = {
 }
 
 
-def _check_env(stages: list[str]) -> None:
-    missing = [var for stage in stages for var in REQUIRED_ENV.get(stage, [])
-               if not os.environ.get(var)]
+def _check_env(stages: list[str], cfg) -> None:
+    required = [var for stage in stages for var in REQUIRED_ENV.get(stage, [])]
+    if cfg.collector == "public":
+        required = [v for v in required if not v.startswith("REDDIT_")]
+    missing = [var for var in required if not os.environ.get(var)]
     if missing:
         raise SystemExit(
             "missing environment variables: " + ", ".join(dict.fromkeys(missing))
@@ -39,8 +41,8 @@ def main(argv: list[str] | None = None) -> None:
 
     stages = (["collect", "extract", "cluster", "score", "report"]
               if args.stage == "run" else [args.stage])
-    _check_env(stages)
     cfg = load_config(args.config)
+    _check_env(stages, cfg)
     conn = db.connect(cfg.db_path)
 
     client = None
@@ -50,7 +52,11 @@ def main(argv: list[str] | None = None) -> None:
 
     for stage in stages:
         if stage == "collect":
-            run_collect(conn, cfg)
+            if cfg.collector == "public":
+                from .collect_public import run_collect_public
+                run_collect_public(conn, cfg)
+            else:
+                run_collect(conn, cfg)
         elif stage == "extract":
             run_extract(conn, cfg, client)
         elif stage == "cluster":
