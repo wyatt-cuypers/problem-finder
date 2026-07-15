@@ -2,3 +2,4 @@ subreddits: [mildlyinfuriating, homeowners, smallbusiness, running, awardtravel]
 window_days: 14
 max_posts_per_sub: 150
 pilot: true
+collector: public   # no-OAuth fallback while Reddit app approval is pending

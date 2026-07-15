@@ -31,3 +31,14 @@ def test_missing_env_keys_exit_with_clear_message(tmp_path, monkeypatch):
     assert "GEMINI_API_KEY" in str(exc.value)
     assert "REDDIT_CLIENT_ID" in str(exc.value)
     assert ".env" in str(exc.value)
+
+
+def test_public_collector_needs_no_reddit_keys(tmp_path, monkeypatch):
+    cfg = tmp_path / "c.yaml"
+    cfg.write_text("subreddits: [running]\nwindow_days: 14\ncollector: public\n")
+    for var in ("REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET", "GEMINI_API_KEY"):
+        monkeypatch.delenv(var, raising=False)
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["run", "--config", str(cfg)])
+    assert "GEMINI_API_KEY" in str(exc.value)
+    assert "REDDIT_CLIENT_ID" not in str(exc.value)

@@ -19,3 +19,11 @@ def test_pilot_yaml_parses():
     cfg = load_config("config/pilot.yaml")
     assert len(cfg.subreddits) == 5
     assert cfg.pilot is True
+
+
+def test_collector_defaults(tmp_path: Path):
+    p = tmp_path / "c.yaml"
+    p.write_text("subreddits: [running]\nwindow_days: 14\n")
+    cfg = load_config(p)
+    assert cfg.collector == "praw"
+    assert cfg.request_interval_s == 6.5
