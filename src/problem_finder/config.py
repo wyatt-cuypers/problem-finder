@@ -18,7 +18,7 @@ class Config:
     min_cluster_size: int = 3
     pilot: bool = False
     collector: str = "praw"        # "praw" (OAuth app) or "public" (no keys)
-    request_interval_s: float = 6.5  # public collector only
+    request_interval_s: float = 10.0  # public collector only
 
 
 def load_config(path: str | Path) -> Config:

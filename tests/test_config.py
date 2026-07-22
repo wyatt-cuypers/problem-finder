@@ -26,4 +26,4 @@ def test_collector_defaults(tmp_path: Path):
     p.write_text("subreddits: [running]\nwindow_days: 14\n")
     cfg = load_config(p)
     assert cfg.collector == "praw"
-    assert cfg.request_interval_s == 6.5
+    assert cfg.request_interval_s == 10.0

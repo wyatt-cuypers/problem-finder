@@ -17,7 +17,7 @@ import requests
 from . import db
 from .collect import hash_author, keep_text, window_bounds
 
-BASE = "https://old.reddit.com"
+BASE = "https://www.reddit.com"
 ATOM = "{http://www.w3.org/2005/Atom}"
 LISTINGS = [("new", None), ("top", "year"), ("top", "month"),
             ("controversial", "year")]
@@ -79,7 +79,7 @@ def parse_feed(xml_text: str) -> list[dict]:
 class PublicFetcher:
     """Rate-limited GET returning feed XML; retries 429/5xx with backoff."""
 
-    def __init__(self, interval_s: float = 6.5):
+    def __init__(self, interval_s: float = 10.0):
         self.interval_s = interval_s
         self._next_at = 0.0
         self.session = requests.Session()
@@ -101,6 +101,11 @@ class PublicFetcher:
                 time.sleep(10 * (attempt + 1))
                 continue
             resp.raise_for_status()
+            if not resp.text.lstrip().startswith("<?xml"):
+                raise RuntimeError(
+                    f"reddit returned a non-feed response for {path} "
+                    "(login wall or block page) — the RSS surface may have "
+                    "changed; try again later or switch collector to praw")
             return resp.text
         raise RuntimeError(f"giving up on {path} after repeated 429/5xx")
 
@@ -115,7 +120,7 @@ def _window_posts(fetch, sub: str, cfg, start_utc: int, end_utc: int) -> dict:
                 params["t"] = t
             if after:
                 params["after"] = after
-            page = [e for e in parse_feed(fetch(f"/r/{sub}/{listing}/.rss",
+            page = [e for e in parse_feed(fetch(f"/r/{sub}/{listing}.rss",
                                                 params))
                     if e["kind"] == "t3"]
             for p in page:
@@ -142,10 +147,16 @@ def _item(entry: dict, sub: str, item_type: str) -> dict:
 
 
 def run_collect_public(conn, cfg, fetch=None, now: int | None = None) -> None:
-    fetch = fetch or PublicFetcher(getattr(cfg, "request_interval_s", 6.5))
+    fetch = fetch or PublicFetcher(getattr(cfg, "request_interval_s", 10.0))
     start_utc, end_utc = window_bounds(cfg.window_days, now=now)
+    failed_subs = []
     for sub in cfg.subreddits:
-        posts = _window_posts(fetch, sub, cfg, start_utc, end_utc)
+        try:
+            posts = _window_posts(fetch, sub, cfg, start_utc, end_utc)
+        except Exception as exc:
+            print(f"r/{sub}: collection failed ({exc}); continuing")
+            failed_subs.append(sub)
+            continue
         seen = {r["thread_id"] for r in conn.execute(
             "SELECT DISTINCT thread_id FROM items WHERE subreddit=?", (sub,))}
         items: list[dict] = []
@@ -156,7 +167,7 @@ def run_collect_public(conn, cfg, fetch=None, now: int | None = None) -> None:
             if keep_text(p["text"], p["author"], 1):
                 items.append(_item(p, sub, "post"))
             thread_feed = parse_feed(
-                fetch(f"/r/{sub}/comments/{p['id']}/.rss",
+                fetch(f"/r/{sub}/comments/{p['id']}.rss",
                       {"limit": PAGE_LIMIT}))
             for c in thread_feed:
                 if c["kind"] != "t1":
@@ -174,3 +185,6 @@ def run_collect_public(conn, cfg, fetch=None, now: int | None = None) -> None:
         conn.commit()
         print(f"r/{sub}: {len(posts)} posts, {n_comments} comments "
               f"({inserted} new items)")
+    if failed_subs:
+        print(f"collect: FAILED for {len(failed_subs)} subreddit(s): "
+              + ", ".join(failed_subs) + " — re-run to retry")

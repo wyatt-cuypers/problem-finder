@@ -14,11 +14,11 @@ def _iso(ts):
 def _post_entry(pid, created, author="someuser", title="my wifi keeps dying",
                 body="<div class=\"md\"><p>the router drops every hour</p></div>"):
     return f"""<entry>
-      <author><name>/u/{author}</name><uri>https://old.reddit.com/user/{author}</uri></author>
+      <author><name>/u/{author}</name><uri>https://www.reddit.com/user/{author}</uri></author>
       <content type="html">{body.replace('<', '&lt;').replace('>', '&gt;')}
         submitted by /u/{author} [link] [comments]</content>
       <id>t3_{pid}</id>
-      <link href="https://old.reddit.com/r/test/comments/{pid}/my_wifi/"/>
+      <link href="https://www.reddit.com/r/test/comments/{pid}/my_wifi/"/>
       <updated>{_iso(created)}</updated>
       <title>{title}</title>
     </entry>"""
@@ -26,10 +26,10 @@ def _post_entry(pid, created, author="someuser", title="my wifi keeps dying",
 
 def _comment_entry(cid, tid, body, created=NOW - DAY, author="someuser"):
     return f"""<entry>
-      <author><name>/u/{author}</name><uri>https://old.reddit.com/user/{author}</uri></author>
+      <author><name>/u/{author}</name><uri>https://www.reddit.com/user/{author}</uri></author>
       <content type="html">&lt;div class="md"&gt;&lt;p&gt;{body}&lt;/p&gt;&lt;/div&gt;</content>
       <id>t1_{cid}</id>
-      <link href="https://old.reddit.com/r/test/comments/{tid}/my_wifi/{cid}/"/>
+      <link href="https://www.reddit.com/r/test/comments/{tid}/my_wifi/{cid}/"/>
       <updated>{_iso(created)}</updated>
       <title>/u/{author} on my wifi keeps dying</title>
     </entry>"""
@@ -97,8 +97,8 @@ def test_run_collect_public_stores_posts_comments_and_coverage():
     comments = _feed(_post_entry("p1", NOW - DAY),  # post repeated in thread feed
                      _comment_entry("c1", "p1", LONG),
                      _comment_entry("c2", "p1", "too short"))
-    fetch = FakeFetch({"/r/test/new/.rss": [listing],
-                       "/r/test/comments/p1/.rss": [comments]})
+    fetch = FakeFetch({"/r/test/new.rss": [listing],
+                       "/r/test/comments/p1.rss": [comments]})
     conn = db.connect(":memory:")
     run_collect_public(conn, Cfg(), fetch=fetch, now=NOW)
     ids = [r["id"] for r in conn.execute("SELECT id FROM items ORDER BY id")]
@@ -112,12 +112,12 @@ def test_run_collect_public_skips_already_collected_threads():
     listing = _feed(_post_entry("p1", NOW - DAY))
     comments = _feed(_comment_entry("c1", "p1", LONG))
     conn = db.connect(":memory:")
-    fetch = FakeFetch({"/r/test/new/.rss": [listing],
-                       "/r/test/comments/p1/.rss": [comments]})
+    fetch = FakeFetch({"/r/test/new.rss": [listing],
+                       "/r/test/comments/p1.rss": [comments]})
     run_collect_public(conn, Cfg(), fetch=fetch, now=NOW)
     assert sum(p.startswith("/r/test/comments/") for p in fetch.paths) == 1
 
-    fetch2 = FakeFetch({"/r/test/new/.rss": [listing]})
+    fetch2 = FakeFetch({"/r/test/new.rss": [listing]})
     run_collect_public(conn, Cfg(), fetch=fetch2, now=NOW)
     assert sum(p.startswith("/r/test/comments/") for p in fetch2.paths) == 0
     assert conn.execute("SELECT COUNT(*) n FROM items").fetchone()["n"] == 2
@@ -125,8 +125,8 @@ def test_run_collect_public_skips_already_collected_threads():
 
 def test_max_posts_per_sub_is_enforced_within_a_page():
     listing = _feed(*[_post_entry(f"p{i}", NOW - DAY) for i in range(5)])
-    pages = {"/r/test/new/.rss": [listing]}
-    pages.update({f"/r/test/comments/p{i}/.rss": [_feed()] for i in range(5)})
+    pages = {"/r/test/new.rss": [listing]}
+    pages.update({f"/r/test/comments/p{i}.rss": [_feed()] for i in range(5)})
     fetch = FakeFetch(pages)
     conn = db.connect(":memory:")
 
