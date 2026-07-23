@@ -11,7 +11,7 @@ def test_load_config_reads_yaml_and_applies_defaults(tmp_path: Path):
     assert cfg.window_days == 14
     assert cfg.pilot is True
     assert cfg.min_comment_words == 15
-    assert cfg.extract_model == "gemini-2.5-flash"
+    assert cfg.extract_model == "gemini-3.6-flash"
     assert cfg.db_path == "data/problem_finder.db"
 
 

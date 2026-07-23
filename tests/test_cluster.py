@@ -77,3 +77,25 @@ def test_run_embed_then_cluster_builds_two_clusters():
     assert sorted(m["n"] for m in members) == [4, 4]
     c = conn.execute("SELECT * FROM clusters").fetchone()
     assert c["canonical_statement"] == "canon"
+
+
+def test_run_embed_commits_chunks_so_progress_survives_a_crash(monkeypatch):
+    import problem_finder.cluster as cluster_mod
+
+    class DiesOnSecondCall:
+        calls = 0
+
+        def embed(self, texts):
+            DiesOnSecondCall.calls += 1
+            if DiesOnSecondCall.calls > 1:
+                raise RuntimeError("429 rate limited")
+            return [[1.0, 0.0]] * len(texts)
+
+    conn = db.connect(":memory:")
+    _seed(conn)  # 8 embeddable rows
+    monkeypatch.setattr(cluster_mod, "EMBED_COMMIT_CHUNK", 5)
+    import pytest
+    with pytest.raises(RuntimeError):
+        run_embed(conn, Cfg(), DiesOnSecondCall())
+    n = conn.execute("SELECT COUNT(*) AS n FROM embeddings").fetchone()["n"]
+    assert n == 5  # first chunk persisted despite the crash

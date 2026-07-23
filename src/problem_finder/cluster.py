@@ -3,6 +3,7 @@ from sklearn.cluster import HDBSCAN
 
 MAX_SUMMARY_STATEMENTS = 30
 MAX_SUMMARY_NOTES = 15
+EMBED_COMMIT_CHUNK = 1000
 
 SUMMARY_PROMPT = """\
 The following problem statements were extracted from Reddit and clustered as \
@@ -53,12 +54,14 @@ def run_embed(conn, cfg, client) -> None:
     if not rows:
         print("embed: nothing to do")
         return
-    vectors = client.embed([r["problem_statement"] for r in rows])
-    conn.executemany("INSERT INTO embeddings VALUES (?,?)",
-                     [(r["item_id"], vec_to_blob(v))
-                      for r, v in zip(rows, vectors)])
-    conn.commit()
-    print(f"embed: {len(rows)} statements embedded")
+    for start in range(0, len(rows), EMBED_COMMIT_CHUNK):
+        chunk = rows[start:start + EMBED_COMMIT_CHUNK]
+        vectors = client.embed([r["problem_statement"] for r in chunk])
+        conn.executemany("INSERT INTO embeddings VALUES (?,?)",
+                         [(r["item_id"], vec_to_blob(v))
+                          for r, v in zip(chunk, vectors)])
+        conn.commit()
+        print(f"embed: {start + len(chunk)}/{len(rows)} statements embedded")
 
 
 def run_cluster(conn, cfg, client) -> None:

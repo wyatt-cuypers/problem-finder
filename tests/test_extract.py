@@ -80,3 +80,26 @@ def test_run_extract_marks_failed_batch_and_gives_up_after_3_attempts():
     assert row["attempts"] == 3
     run_extract(conn, Cfg(), client)  # no responses left; must not call again
     assert len(client.prompts) == 3
+
+
+def test_run_extract_halts_on_daily_quota_without_marking_failed():
+    conn = db.connect(":memory:")
+    db.upsert_items(conn, [make_item("c1"), make_item("c2")])
+    quota_err = RuntimeError(
+        "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, "
+        "'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier'}}")
+    client = FakeClient([quota_err])
+    run_extract(conn, Cfg(), client)
+    assert conn.execute("SELECT COUNT(*) AS n FROM extractions").fetchone()["n"] == 0
+    assert len(client.prompts) == 1  # stopped after the first batch
+
+
+def test_run_extract_halts_on_depleted_credits_without_marking_failed():
+    conn = db.connect(":memory:")
+    db.upsert_items(conn, [make_item("c1")])
+    err = RuntimeError(
+        "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': "
+        "'Your prepayment credits are depleted.'}}")
+    client = FakeClient([err])
+    run_extract(conn, Cfg(), client)
+    assert conn.execute("SELECT COUNT(*) AS n FROM extractions").fetchone()["n"] == 0

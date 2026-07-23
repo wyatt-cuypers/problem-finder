@@ -58,6 +58,14 @@ def parse_extraction_response(data, n_items: int) -> list[dict | None]:
     return rows
 
 
+def _quota_gone_for_the_day(exc: Exception) -> bool:
+    # Daily free-tier quota or depleted prepaid credits: neither recovers
+    # within this run, so retrying other batches only poisons the queue.
+    msg = str(exc)
+    return "RESOURCE_EXHAUSTED" in msg and (
+        "PerDay" in msg or "credits are depleted" in msg)
+
+
 PENDING_SQL = """\
 SELECT i.id, i.text, COALESCE(e.attempts, 0) AS attempts
 FROM items i LEFT JOIN extractions e ON e.item_id = i.id
@@ -101,6 +109,9 @@ def run_extract(conn, cfg, client) -> None:
             rows = parse_extraction_response(
                 client.generate_json(build_extract_prompt(texts)), len(batch))
         except Exception as exc:
+            if _quota_gone_for_the_day(exc):
+                print(f"extract: quota/credits exhausted, stopping run ({exc})")
+                break
             print(f"extract: batch failed ({exc})")
             rows = [None] * len(batch)
         for r, parsed in zip(batch, rows):

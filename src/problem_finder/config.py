@@ -13,7 +13,7 @@ class Config:
     min_comment_words: int = 15
     max_posts_per_sub: int = 200
     extract_batch_size: int = 20
-    extract_model: str = "gemini-2.5-flash"
+    extract_model: str = "gemini-3.6-flash"
     embed_model: str = "gemini-embedding-001"
     min_cluster_size: int = 3
     pilot: bool = False
